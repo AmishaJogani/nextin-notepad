@@ -2,54 +2,113 @@
 <html lang="en">
 
 <head>
-    <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Online Notepad</title>
 
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <title>Online Notepad</title>
+    <!-- Prism.js CSS (for code highlighting) -->
+    <link href="{{ asset('css/prism.css') }}" rel="stylesheet">
+
+    <style>
+        ::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        /* Track */
+        ::-webkit-scrollbar-track {
+            box-shadow: inset 0 0 5px grey;
+            border-radius: 10px;
+        }
+
+        /* Handle */
+        ::-webkit-scrollbar-thumb {
+            background: #007bff;
+            border-radius: 10px;
+        }
+
+        /* Handle on hover */
+        ::-webkit-scrollbar-thumb:hover {
+            background: #007bff;
+        }
+
+        body {
+            background-color: #1e1e1e;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+        }
+
+        .editor-container {
+            width: 100%;
+            height: 90vh;
+            position: relative;
+            border-radius: 3px;
+            border: 1px solid #444;
+            background-color: #282c34;
+            padding: 6px;
+            overflow: hidden;
+        }
+
+        /* Hidden textarea for saving content */
+        .hidden-textarea {
+            display: none;
+        }
+
+        /* Styled contenteditable div for Prism.js */
+        .editor {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            outline: none;
+            caret-color: white;
+            font-size: 16px;
+        }
+
+        /* Make sure pre tags look like code */
+        pre {
+            margin: 0;
+            background: transparent;
+            border: none;
+        }
+
+        /* Add focus effect */
+        .editor-container:focus-within {
+            border: 1px solid #007bff;
+            box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
+        }
+    </style>
 </head>
 
-<style>
-    .notepad {
-        width: 100%;
-        height: 90vh;
-        padding: 15px;
-        border: 1px solid #ced4da;
-        border-radius: 8px;
-        background-color: #f8f9fa;
-        font-family: monospace;
-        font-size: 16px;
-        line-height: 1.6;
-        box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
-        resize: none;
-        outline: none;
-    }
-
-    .notepad:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
-    }
-</style>
-
 <body>
-    <textarea placeholder="Please Type Something here.." class="notepad" id="note" style="width: 100%; height: 100vh;">{{ $note->content ?? '' }}</textarea>
 
+    <div class="container mt-3">
+        <h3 class="text-center">Online Notepad</h3>
+        <div class="editor-container">
+            <div class="editor" contenteditable="true" id="editor">{!! $note->content !!}</div>
+            <textarea id="hidden-textarea" class="hidden-textarea"></textarea>
+        </div>
+    </div>
+
+    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Prism.js -->
+    <script src="{{ asset('js/prism.js') }}"></script>
+    {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script> --}}
+
     <script>
         $(document).ready(function() {
             let key = "{{ $note->key ?? '' }}";
-            $(".notepad").focus();
-            let typingTimer; // Timer identifier
-            const doneTypingInterval = 1000; // Time in ms (2 seconds)
+            let typingTimer;
+            const doneTypingInterval = 1000;
 
-            $("#note").on("input", function() {
-                clearTimeout(typingTimer); // Clear the previous timer
-                typingTimer = setTimeout(() => {
-                    saveNote(); // Call the save function after 2s of no input
-                }, doneTypingInterval);
+            $(".editor").on("input", function() {
+                clearTimeout(typingTimer);
+                typingTimer = setTimeout(saveNote, doneTypingInterval);
+                $("#hidden-textarea").val($(this).html());
             });
 
             function saveNote() {
@@ -57,22 +116,21 @@
                     url: "{{ route('save') }}",
                     type: "POST",
                     data: {
-                        content: $("#note").val(),
+                        content: $("#hidden-textarea").val(),
                         key: key,
                         _token: "{{ csrf_token() }}"
                     },
                     success: function(response) {
                         console.log(response.success);
                         if (response.success) {
-                            // Animate the textarea border color
-                            $("textarea").css("border", "2px solid green").animate({
+                            $(".editor-container").css("border", "2px solid green").animate({
                                 opacity: 0.8
                             }, 200).animate({
                                 opacity: 1
                             }, 200, function() {
-                                // Revert back after a short delay
                                 setTimeout(() => {
-                                    $("textarea").css("border", "1px solid #ccc"); // Original border color
+                                    $(".editor-container").css("border",
+                                        "1px solid #444");
                                 }, 1000);
                             });
                         } else {
@@ -84,22 +142,9 @@
                     }
                 });
             }
-
         });
     </script>
 
-
-
-    <!-- Optional JavaScript; choose one of the two! -->
-
-    <!-- Option 1: Bootstrap Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
-
-    <!-- Option 2: Separate Popper and Bootstrap JS -->
-    <!--
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js" integrity="sha384-IQsoLXl5PILFhosVNubq5LC7Qb9DXgDA9i+tQ8Zj3iwWAwPtgFTxbJ8NT4GN1R8p" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.min.js" integrity="sha384-cVKIPhGWiC2Al4u+LWgxfKTRIcfu0JTxR+EQDz/bgldoEyl4H0zUF0QKbrJ0EcQF" crossorigin="anonymous"></script>
-    -->
 </body>
 
 </html>
